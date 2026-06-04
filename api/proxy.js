@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
 
-  const GAS_URL = '/api/proxy';
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwJR220s3Fttctx4L4uVdOzedYRcIILOl4mBe_gCwdCE8Sv2hjkQ7QRooryxkcsXUu4/exec';
 
   try {
     const response = await fetch(GAS_URL, {

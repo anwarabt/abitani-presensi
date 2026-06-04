@@ -1114,6 +1114,9 @@ body {
         <a class="nav-item" onclick="navigateTo('monitoring-lokasi')" data-page="monitoring-lokasi">
           <div class="ni-icon"><i class="bi bi-geo-alt"></i></div> Monitoring Lokasi
         </a>
+        <a class="nav-item" onclick="navigateTo('manajemen-cabang')" data-page="manajemen-cabang">
+          <div class="ni-icon"><i class="bi bi-building"></i></div> Manajemen Cabang
+        </a>
         <div class="sidebar-section-label">Pengaturan</div>
         <a class="nav-item" onclick="navigateTo('pengaturan')" data-page="pengaturan">
           <div class="ni-icon"><i class="bi bi-gear"></i></div> Pengaturan Sistem
@@ -1446,6 +1449,7 @@ function navigateTo(page) {
       case 'rekap-presensi': renderRekapPresensi(); break;
       case 'izin-management': renderIzinManagement(); break;
       case 'monitoring-lokasi': renderMonitoringLokasi(); break;
+      case 'manajemen-cabang': renderManajemenCabang(); break;
       case 'pengaturan': renderPengaturan(); break;
       default: renderDashboard();
     }
@@ -1576,8 +1580,14 @@ async function loadDashboardData() {
       if (statusContent) {
         const masuk = d.statusHariIni?.masuk;
         const pulang = d.statusHariIni?.pulang;
-        statusContent.innerHTML = `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        // Info cabang & entitas
+        const infoCabang = (d.cabang || d.entitas) ? `
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            ${d.cabang ? `<span style="font-size:11px;background:var(--green-pale);color:var(--green-primary);padding:3px 10px;border-radius:var(--radius-full);font-weight:700;">🏢 ${d.cabang}</span>` : ''}
+            ${d.entitas ? `<span style="font-size:11px;background:#EEF2FF;color:#4338CA;padding:3px 10px;border-radius:var(--radius-full);font-weight:700;">🏛️ ${d.entitas}</span>` : ''}
+          </div>` : '';
+        statusContent.innerHTML = infoCabang + `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
             <div style="padding:12px;background:${masuk ? 'var(--green-pale)' : 'var(--gray-50)'};border-radius:var(--radius-md);border:1px solid ${masuk ? 'var(--green-light)' : 'var(--gray-200)'};">
               <div style="font-size:20px;margin-bottom:4px;">${masuk ? '✅' : '⏰'}</div>
               <div style="font-size:12px;font-weight:700;color:${masuk ? 'var(--green-primary)' : 'var(--gray-500)'};">${masuk ? 'Sudah Masuk' : 'Belum Masuk'}</div>
@@ -1588,13 +1598,23 @@ async function loadDashboardData() {
               <div style="font-size:12px;font-weight:700;color:${pulang ? 'var(--yellow-dark)' : 'var(--gray-500)'};">${pulang ? 'Sudah Pulang' : 'Belum Pulang'}</div>
               ${d.presensiHariIni?.find(p => p.jenisPresensi === 'pulang') ? `<div style="font-size:11px;color:var(--gray-400);">${d.presensiHariIni.find(p => p.jenisPresensi === 'pulang').jam}</div>` : ''}
             </div>
-          </div>`;
+          </div>
+          ${d.lokasiKantor ? `
+          <div style="padding:10px;background:var(--gray-50);border-radius:var(--radius-sm);border:1px solid var(--gray-200);display:flex;align-items:center;gap:10px;">
+            <i class="bi bi-geo-alt-fill" style="color:var(--danger);font-size:18px;flex-shrink:0;"></i>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:700;">Lokasi Absen: ${d.lokasiKantor.nama}</div>
+              <div style="font-size:10px;color:var(--gray-400);">Radius ${d.lokasiKantor.radius}m</div>
+            </div>
+            <a href="${d.lokasiKantor.mapsLink}" target="_blank" style="flex-shrink:0;font-size:11px;color:var(--info);font-weight:600;">📍 Maps</a>
+          </div>` : ''}`;
       }
       
       const rekapContent = document.getElementById('rekap-content');
       if (rekapContent) {
+        const lim = d.limitAbsen || {};
         rekapContent.innerHTML = `
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-bottom:12px;">
             <div style="padding:12px;background:var(--green-pale);border-radius:var(--radius-md);">
               <div style="font-size:22px;font-weight:800;color:var(--green-primary);">${d.hadirBulanIni || 0}</div>
               <div style="font-size:11px;color:var(--gray-500);font-weight:600;">Hadir</div>
@@ -1607,7 +1627,25 @@ async function loadDashboardData() {
               <div style="font-size:22px;font-weight:800;color:var(--danger);">${d.terlambatBulanIni || 0}</div>
               <div style="font-size:11px;color:var(--gray-500);font-weight:600;">Terlambat</div>
             </div>
-          </div>`;
+          </div>
+          ${lim.izin ? `
+          <div style="margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">Sisa Kuota Absen Bulan Ini</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:80px;padding:8px;background:#FEF3C7;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-size:14px;font-weight:800;color:#92400E;">${lim.izin.max - lim.izin.used}/${lim.izin.max}</div>
+                <div style="font-size:10px;color:#92400E;font-weight:600;">Izin</div>
+              </div>
+              <div style="flex:1;min-width:80px;padding:8px;background:#D1FAE5;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-size:14px;font-weight:800;color:#065F46;">${lim.cuti.max - lim.cuti.used}/${lim.cuti.max}</div>
+                <div style="font-size:10px;color:#065F46;font-weight:600;">Cuti</div>
+              </div>
+              <div style="flex:1;min-width:80px;padding:8px;background:#DBEAFE;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-size:14px;font-weight:800;color:#1E40AF;">${lim.sakit.max - lim.sakit.used}/${lim.sakit.max}</div>
+                <div style="font-size:10px;color:#1E40AF;font-weight:600;">Sakit</div>
+              </div>
+            </div>
+          </div>` : ''}`;
       }
       
       const izinContent = document.getElementById('izin-content');
@@ -1734,6 +1772,26 @@ async function loadAdminDashboard() {
             <div class="stat-value">${d.izinPending || 0}</div>
             <div class="stat-label">Izin Pending</div>
           </div>`;
+        
+        // Tambah stats per cabang kalau ada
+        if (d.statsCabang && d.statsCabang.length > 1) {
+          const cabangHtml = d.statsCabang.map(sc => `
+            <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-100);">
+              <div>
+                <div style="font-size:13px;font-weight:700;">${sc.cabang}</div>
+                <div style="font-size:11px;color:var(--gray-400);">${sc.entitas || ''}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:13px;font-weight:700;color:var(--green-primary);">${sc.hadir}/${sc.totalKaryawan}</div>
+                <div style="font-size:11px;color:var(--gray-400);">hadir</div>
+              </div>
+            </div>`).join('');
+          statsGrid.innerHTML += `
+          <div style="grid-column:span 2;background:white;border-radius:var(--radius-lg);padding:14px;box-shadow:var(--shadow-sm);">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-500);padding:0 0 8px;letter-spacing:1px;text-transform:uppercase;">Kehadiran per Cabang</div>
+            ${cabangHtml}
+          </div>`;
+        }
       }
       
       const chartContainer = document.getElementById('chart-container');
@@ -2341,26 +2399,42 @@ async function loadRiwayatIzin() {
   const token = localStorage.getItem('at_token');
   const container = document.getElementById('riwayat-izin-content');
   if (!container) return;
-  
+
+  container.innerHTML = '<div class="skeleton" style="height:80px;border-radius:8px;margin:12px 16px;"></div>';
+
   try {
     const result = await callAPI('getIzinKaryawan', { token });
-    if (result.success && result.data.length > 0) {
-      container.innerHTML = result.data.slice().reverse().slice(0, 10).map(iz => `
-        <div style="padding:12px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:12px;">
+    if (result.success && result.data && result.data.length > 0) {
+      const daftarIzin = result.data.slice().reverse().slice(0, 10);
+      container.innerHTML = `
+        <div style="padding:4px 16px 8px;font-size:11px;color:var(--gray-400);font-weight:600;">
+          ${result.data.length} pengajuan total
+        </div>
+        ${daftarIzin.map(iz => `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:12px;">
           <div style="width:40px;height:40px;background:var(--gray-100);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
             ${getJenisIzinIcon(iz.jenisIzin)}
           </div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;">${getJenisIzinLabel(iz.jenisIzin)}</div>
-            <div style="font-size:11px;color:var(--gray-400);">${formatDate(iz.tanggalMulai)} ${iz.tanggalAkhir !== iz.tanggalMulai ? ' - ' + formatDate(iz.tanggalAkhir) : ''}</div>
-            <div style="font-size:11px;color:var(--gray-500);">${iz.alasan?.substring(0, 50)}</div>
+            <div style="font-size:11px;color:var(--gray-400);">
+              ${formatDate(iz.tanggalMulai)}${iz.tanggalAkhir && iz.tanggalAkhir !== iz.tanggalMulai ? ' s/d ' + formatDate(iz.tanggalAkhir) : ''}
+            </div>
+            ${iz.alasan ? `<div style="font-size:11px;color:var(--gray-500);font-style:italic;">${iz.alasan.substring(0,60)}</div>` : ''}
           </div>
-          <span class="badge-custom ${getStatusBadgeClass(iz.status)}">${iz.status}</span>
-        </div>`).join('');
+          <span class="badge-custom ${
+            iz.status === 'Disetujui' ? 'badge-success' :
+            iz.status === 'Ditolak' ? 'badge-danger' : 'badge-warning'
+          }">${iz.status}</span>
+        </div>`).join('')}`;
+    } else if (result.success) {
+      container.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="empty-icon" style="font-size:36px;">📋</div><div class="empty-title">Belum ada pengajuan izin</div></div>';
     } else {
-      container.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="empty-icon" style="font-size:36px;">📋</div><div class="empty-title">Belum ada izin</div></div>';
+      container.innerHTML = `<div class="alert alert-danger" style="margin:12px;">Gagal: ${result.message}</div>`;
     }
-  } catch(e) {}
+  } catch(e) {
+    container.innerHTML = `<div class="alert alert-danger" style="margin:12px;">Gagal memuat riwayat izin: ${e.message}</div>`;
+  }
 }
 
 function renderProfil() {
@@ -2531,6 +2605,18 @@ async function renderDataKaryawan() {
               <input type="text" class="input-custom" id="k-divisi" placeholder="Divisi">
             </div>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group-custom">
+              <label class="form-label-sm">Cabang</label>
+              <select class="select-custom" id="k-cabang">
+                <option value="PUSAT">PUSAT</option>
+              </select>
+            </div>
+            <div class="form-group-custom">
+              <label class="form-label-sm">Entitas</label>
+              <input type="text" class="input-custom" id="k-entitas" placeholder="Nama entitas/perusahaan">
+            </div>
+          </div>
           <div class="form-group-custom">
             <label class="form-label-sm">Email</label>
             <input type="email" class="input-custom" id="k-email" placeholder="email@domain.com">
@@ -2657,6 +2743,10 @@ function renderKaryawanList(list) {
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;color:var(--gray-800);">${k.nama}</div>
             <div style="font-size:11px;color:var(--gray-400);">${k.nik} • ${k.jabatan} • ${k.divisi}</div>
+            <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;">
+              ${k.cabang ? `<span style="font-size:10px;background:var(--green-pale);color:var(--green-primary);padding:1px 7px;border-radius:99px;font-weight:600;">🏢 ${k.cabang}</span>` : ''}
+              ${k.entitas ? `<span style="font-size:10px;background:#EEF2FF;color:#4338CA;padding:1px 7px;border-radius:99px;font-weight:600;">🏛️ ${k.entitas}</span>` : ''}
+            </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
             <span class="badge-custom ${k.status === 'aktif' ? 'badge-success' : 'badge-gray'}">${k.status}</span>
@@ -2680,8 +2770,10 @@ function showTambahKaryawan() {
   document.getElementById('k-hp').value = '';
   document.getElementById('k-role').value = 'karyawan';
   document.getElementById('k-status').value = 'aktif';
+  if (document.getElementById('k-entitas')) document.getElementById('k-entitas').value = '';
   document.getElementById('k-nik').readOnly = false;
   document.getElementById('status-group').style.display = 'none';
+  loadCabangOptions('k-cabang', 'PUSAT');
   openModal('modal-karyawan');
 }
 
@@ -2699,8 +2791,10 @@ function editKaryawan(nik) {
   document.getElementById('k-hp').value = k.noHp || '';
   document.getElementById('k-role').value = k.role || 'karyawan';
   document.getElementById('k-status').value = k.status;
+  if (document.getElementById('k-entitas')) document.getElementById('k-entitas').value = k.entitas || '';
   document.getElementById('k-nik').readOnly = true;
   document.getElementById('status-group').style.display = 'block';
+  loadCabangOptions('k-cabang', k.cabang || 'PUSAT');
   openModal('modal-karyawan');
 }
 
@@ -2714,6 +2808,8 @@ async function simpanKaryawan() {
   const noHp = document.getElementById('k-hp').value.trim();
   const role = document.getElementById('k-role').value;
   const status = document.getElementById('k-status').value;
+  const cabang = document.getElementById('k-cabang')?.value || 'PUSAT';
+  const entitas = document.getElementById('k-entitas')?.value.trim() || '';
   
   if (!nik || !nama) { showToast('warning', 'Form', 'NIK dan Nama wajib diisi'); return; }
   
@@ -2723,7 +2819,7 @@ async function simpanKaryawan() {
   const token = localStorage.getItem('at_token');
   try {
     const action = editNIK ? 'editKaryawan' : 'tambahKaryawan';
-    const result = await callAPI(action, { token, nik, nama, jabatan, divisi, email, noHp, role, status });
+    const result = await callAPI(action, { token, nik, nama, jabatan, divisi, email, noHp, role, status, cabang, entitas });
     
     if (result.success) {
       showToast('success', 'Berhasil', result.message);
@@ -2880,44 +2976,56 @@ async function loadRekap() {
   const tahun = document.getElementById('rekap-tahun')?.value;
   const divisi = document.getElementById('rekap-divisi')?.value;
   const container = document.getElementById('rekap-content');
-  
+
   if (!container) return;
   container.innerHTML = '<div class="skeleton" style="height:300px;border-radius:16px;"></div>';
-  
+
   try {
     const result = await callAPI('getRekapPresensi', { token, bulan, tahun, divisi });
-    if (result.success && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
+      const totalHariKerja = result.data[0]?.hariKerja || '-';
       container.innerHTML = `
+        <div style="padding:10px 0 6px;font-size:12px;color:var(--gray-400);font-weight:600;">
+          📅 Hari Kerja Bulan Ini: <strong style="color:var(--gray-700);">${totalHariKerja} hari</strong> &nbsp;|&nbsp; ${result.data.length} karyawan
+        </div>
         <div class="table-custom-wrap">
           <table class="table-custom">
             <thead><tr>
-              <th>Nama</th>
-              <th>Divisi</th>
-              <th>Hadir</th>
-              <th>Izin</th>
-              <th>Dinas</th>
-              <th>½ Hari</th>
-              <th>Terlambat</th>
+              <th>Nama / Divisi</th>
+              <th style="text-align:center;">Hadir</th>
+              <th style="text-align:center;">Izin</th>
+              <th style="text-align:center;">Dinas</th>
+              <th style="text-align:center;">½ Hari</th>
+              <th style="text-align:center;">Terlambat</th>
+              <th style="text-align:center;">Tdk Hadir</th>
             </tr></thead>
             <tbody>
               ${result.data.map(r => `
                 <tr>
-                  <td><div style="font-weight:700;">${r.nama}</div><div style="font-size:11px;color:var(--gray-400);">${r.jabatan}</div></td>
-                  <td>${r.divisi}</td>
-                  <td><span style="color:var(--green-primary);font-weight:700;">${r.hadir}</span></td>
-                  <td><span style="color:var(--yellow-dark);font-weight:700;">${r.izin}</span></td>
-                  <td><span style="color:var(--info);font-weight:700;">${r.dinasLuar}</span></td>
-                  <td><span style="color:#8B5CF6;font-weight:700;">${r.setengahHari}</span></td>
-                  <td><span style="color:var(--danger);font-weight:700;">${r.terlambat}</span></td>
+                  <td>
+                    <div style="font-weight:700;font-size:13px;">${r.nama}</div>
+                    <div style="font-size:11px;color:var(--gray-400);">${r.jabatan} · ${r.divisi}</div>
+                  </td>
+                  <td style="text-align:center;"><span style="color:var(--green-primary);font-weight:800;font-size:15px;">${r.hadir}</span></td>
+                  <td style="text-align:center;"><span style="color:var(--yellow-dark);font-weight:700;">${r.izin}</span></td>
+                  <td style="text-align:center;"><span style="color:var(--info);font-weight:700;">${r.dinasLuar}</span></td>
+                  <td style="text-align:center;"><span style="color:#8B5CF6;font-weight:700;">${r.setengahHari}</span></td>
+                  <td style="text-align:center;"><span style="color:var(--warning);font-weight:700;">${r.terlambat}</span></td>
+                  <td style="text-align:center;"><span style="color:var(--danger);font-weight:700;">${r.tidakHadir}</span></td>
                 </tr>`).join('')}
             </tbody>
           </table>
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);padding:8px 4px;">
+          * Izin dihitung berdasarkan pengajuan izin yang telah <strong>Disetujui</strong>. Tidak Hadir = Hari kerja dikurangi semua aktivitas.
         </div>`;
+    } else if (result.success) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Tidak ada data rekap</div><div class="empty-desc">Belum ada karyawan aktif atau presensi bulan ini</div></div>`;
     } else {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Tidak ada data rekap</div></div>`;
+      container.innerHTML = `<div class="alert alert-danger">Gagal: ${result.message || 'Terjadi kesalahan'}</div>`;
     }
   } catch(e) {
-    container.innerHTML = '<div class="alert alert-danger">Gagal memuat rekap</div>';
+    container.innerHTML = `<div class="alert alert-danger">Gagal memuat rekap: ${e.message}</div>`;
   }
 }
 
@@ -2941,48 +3049,73 @@ async function renderIzinManagement() {
 async function loadIzinPending() {
   const token = localStorage.getItem('at_token');
   const container = document.getElementById('izin-management-content');
-  
+  if (!container) return;
+
+  container.innerHTML = '<div class="skeleton" style="height:300px;border-radius:16px;"></div>';
+
   try {
     const result = await callAPI('getIzinPending', { token });
-    
+
     if (result.success) {
+      // Update notif badge dengan aman
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        if (result.data.length > 0) {
+          badge.setAttribute('data-count', result.data.length);
+          badge.style.display = 'block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
       if (result.data.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Semua izin sudah diproses</div><div class="empty-desc">Tidak ada pengajuan izin yang menunggu</div></div>`;
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <div class="empty-title">Semua izin sudah diproses</div>
+            <div class="empty-desc">Tidak ada pengajuan izin yang menunggu persetujuan</div>
+          </div>`;
         return;
       }
-      
-      document.getElementById('notif-badge').setAttribute('data-count', result.data.length);
-      
-      container.innerHTML = result.data.map(iz => `
+
+      container.innerHTML = `
+        <div style="padding:10px 0 8px;font-size:12px;color:var(--gray-400);font-weight:600;">
+          🔔 ${result.data.length} pengajuan izin menunggu persetujuan
+        </div>
+        ${result.data.map(iz => `
         <div class="card-custom mb-2">
           <div class="card-custom-body">
             <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
-              <div style="width:44px;height:44px;background:var(--green-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:800;flex-shrink:0;">${iz.nama.charAt(0).toUpperCase()}</div>
+              <div style="width:44px;height:44px;background:var(--green-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:800;flex-shrink:0;">
+                ${iz.nama.charAt(0).toUpperCase()}
+              </div>
               <div style="flex:1;">
                 <div style="font-size:14px;font-weight:800;">${iz.nama}</div>
-                <div style="font-size:11px;color:var(--gray-400);">${iz.divisi}</div>
+                <div style="font-size:11px;color:var(--gray-400);">${iz.divisi} · NIK: ${iz.nik}</div>
               </div>
               <span class="badge-custom badge-warning">Pending</span>
             </div>
             <div style="padding:12px;background:var(--gray-50);border-radius:var(--radius-sm);margin-bottom:12px;font-size:13px;">
-              <div><strong>${getJenisIzinLabel(iz.jenisIzin)}</strong></div>
-              <div style="color:var(--gray-500);">📅 ${formatDate(iz.tanggalMulai)}${iz.tanggalAkhir !== iz.tanggalMulai ? ' - ' + formatDate(iz.tanggalAkhir) : ''}</div>
-              <div style="color:var(--gray-600);margin-top:4px;">${iz.alasan}</div>
+              <div style="font-weight:700;margin-bottom:4px;">${getJenisIzinLabel(iz.jenisIzin)}</div>
+              <div style="color:var(--gray-500);">📅 ${formatDate(iz.tanggalMulai)}${iz.tanggalAkhir && iz.tanggalAkhir !== iz.tanggalMulai ? ' s/d ' + formatDate(iz.tanggalAkhir) : ''}</div>
+              <div style="color:var(--gray-600);margin-top:6px;font-style:italic;">"${iz.alasan}"</div>
             </div>
-            ${iz.lampiran ? `<a href="${iz.lampiran}" target="_blank" class="btn-secondary-custom mb-3" style="font-size:12px;padding:6px 12px;"><i class="bi bi-paperclip"></i> Lihat Lampiran</a>` : ''}
+            ${iz.lampiran ? `<a href="${iz.lampiran}" target="_blank" class="btn-secondary-custom mb-3" style="font-size:12px;padding:6px 14px;display:inline-flex;"><i class="bi bi-paperclip"></i>&nbsp;Lihat Lampiran</a>` : ''}
             <div style="display:flex;gap:10px;">
               <button class="btn-danger-custom flex-1 justify-content-center" style="padding:10px;" onclick="processIzin('${iz.id}', 'reject')">
-                <i class="bi bi-x-circle"></i> Tolak
+                <i class="bi bi-x-circle"></i>&nbsp;Tolak
               </button>
               <button class="btn-primary-custom flex-1 justify-content-center" style="padding:10px;" onclick="processIzin('${iz.id}', 'approve')">
-                <i class="bi bi-check-circle"></i> Setujui
+                <i class="bi bi-check-circle"></i>&nbsp;Setujui
               </button>
             </div>
           </div>
-        </div>`).join('');
+        </div>`).join('')}`;
+    } else {
+      container.innerHTML = `<div class="alert alert-danger">Gagal: ${result.message || 'Terjadi kesalahan server'}</div>`;
     }
   } catch(e) {
-    container.innerHTML = '<div class="alert alert-danger">Gagal memuat data izin</div>';
+    container.innerHTML = `<div class="alert alert-danger">Gagal memuat data izin: ${e.message}</div>`;
   }
 }
 
@@ -3094,67 +3227,165 @@ function getLocationForSetting() {
 
 async function renderMonitoringLokasi() {
   const content = document.getElementById('main-content');
-  
+
   content.innerHTML = `
     <div class="fade-in">
       <div class="page-header">
-        <div><h1 class="page-title">Monitoring Lokasi</h1><p class="page-subtitle">Sebaran lokasi presensi karyawan hari ini</p></div>
+        <div>
+          <h1 class="page-title">Monitoring Lokasi</h1>
+          <p class="page-subtitle">Sebaran lokasi presensi karyawan hari ini</p>
+        </div>
+        <button class="btn-secondary-custom" style="padding:8px 14px;" onclick="renderMonitoringLokasi()">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
       </div>
       <div id="monitoring-content"><div class="skeleton" style="height:400px;border-radius:16px;"></div></div>
     </div>`;
-  
+
   const token = localStorage.getItem('at_token');
+  const container = document.getElementById('monitoring-content');
+
   try {
     const result = await callAPI('getPresensiHariIni', { token });
-    if (result.success && result.data.length > 0) {
-      const withLocation = result.data.filter(p => p.latitude && p.longitude);
-      
-      document.getElementById('monitoring-content').innerHTML = `
-        <div class="card-custom mb-3">
-          <div style="padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;">
-            <div><div style="font-size:24px;font-weight:800;color:var(--green-primary);">${result.data.length}</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">Total Presensi</div></div>
-            <div><div style="font-size:24px;font-weight:800;color:var(--success);">${result.data.filter(p => p.statusLokasi === 'Dalam Area').length}</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">Dalam Area</div></div>
-            <div><div style="font-size:24px;font-weight:800;color:var(--danger);">${result.data.filter(p => p.statusLokasi === 'Luar Area').length}</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">Luar Area</div></div>
+
+    if (!result.success) {
+      container.innerHTML = `<div class="alert alert-danger">Gagal: ${result.message || 'Terjadi kesalahan'}</div>`;
+      return;
+    }
+
+    const data = result.data || [];
+
+    if (data.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🗺️</div>
+          <div class="empty-title">Belum ada presensi hari ini</div>
+          <div class="empty-desc">Data akan muncul setelah karyawan melakukan presensi</div>
+        </div>`;
+      return;
+    }
+
+    const dalamArea = data.filter(p => p.statusLokasi === 'Dalam Area').length;
+    const luarArea = data.filter(p => p.statusLokasi === 'Luar Area').length;
+    const tanpaLokasi = data.filter(p => !p.latitude || !p.longitude).length;
+    const withLocation = data.filter(p => p.latitude && p.longitude);
+
+    // Buat URL Google Maps embed untuk titik-titik lokasi
+    const mapPoints = withLocation.slice(0, 10).map(p =>
+      `${encodeURIComponent(p.nama)}@${p.latitude},${p.longitude}`
+    ).join('|');
+
+    container.innerHTML = `
+      <div class="card-custom mb-3">
+        <div style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;">
+          <div style="padding:8px;background:var(--gray-50);border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:var(--green-primary);">${data.length}</div>
+            <div style="font-size:10px;color:var(--gray-400);font-weight:600;margin-top:2px;">Total Presensi</div>
+          </div>
+          <div style="padding:8px;background:var(--green-pale);border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:var(--success);">${dalamArea}</div>
+            <div style="font-size:10px;color:var(--gray-400);font-weight:600;margin-top:2px;">Dalam Area</div>
+          </div>
+          <div style="padding:8px;background:#FEF2F2;border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:var(--danger);">${luarArea}</div>
+            <div style="font-size:10px;color:var(--gray-400);font-weight:600;margin-top:2px;">Luar Area</div>
+          </div>
+          <div style="padding:8px;background:var(--gray-100);border-radius:10px;">
+            <div style="font-size:22px;font-weight:800;color:var(--gray-500);">${tanpaLokasi}</div>
+            <div style="font-size:10px;color:var(--gray-400);font-weight:600;margin-top:2px;">Tanpa GPS</div>
           </div>
         </div>
-        <div class="card-custom">
-          ${result.data.slice(0, 20).map(p => `
-            <div style="padding:12px 16px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:12px;">
-              <div style="width:40px;height:40px;background:${p.statusLokasi === 'Dalam Area' ? 'var(--green-pale)' : '#FEF2F2'};border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;">${getJenisPresensiIcon(p.jenisPresensi)}</div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;">${p.nama}</div>
-                <div style="font-size:11px;color:var(--gray-400);">${p.jam} • ${p.alamat?.substring(0,60) || 'Tanpa lokasi'}</div>
+      </div>
+
+      ${withLocation.length > 0 ? `
+      <div class="card-custom mb-3">
+        <div class="card-custom-header">
+          <i class="bi bi-map" style="color:var(--green-primary);font-size:18px;"></i>
+          <h3>Peta Sebaran Lokasi</h3>
+          <span class="badge-custom badge-success ms-auto">${withLocation.length} titik</span>
+        </div>
+        <div style="padding:0 16px 16px;">
+          <div style="border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--gray-200);">
+            <iframe
+              width="100%" height="280"
+              frameborder="0" style="border:0;"
+              src="https://maps.google.com/maps?q=${withLocation[0].latitude},${withLocation[0].longitude}&z=14&output=embed"
+              allowfullscreen loading="lazy">
+            </iframe>
+          </div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+            ${withLocation.slice(0,5).map(p => `
+              <a href="${p.mapsLink}" target="_blank"
+                style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--gray-100);border-radius:20px;font-size:11px;font-weight:600;color:var(--green-primary);text-decoration:none;">
+                📍 ${p.nama.split(' ')[0]}
+              </a>`).join('')}
+            ${withLocation.length > 5 ? `<span style="font-size:11px;color:var(--gray-400);padding:4px 8px;">+${withLocation.length - 5} lainnya</span>` : ''}
+          </div>
+        </div>
+      </div>` : ''}
+
+      <div class="card-custom">
+        <div class="card-custom-header">
+          <i class="bi bi-list-ul" style="color:var(--green-primary);font-size:18px;"></i>
+          <h3>Daftar Presensi Hari Ini</h3>
+        </div>
+        ${data.map(p => `
+          <div style="padding:12px 16px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:12px;">
+            <div style="width:40px;height:40px;background:${p.statusLokasi === 'Dalam Area' ? 'var(--green-pale)' : p.statusLokasi === 'Luar Area' ? '#FEF2F2' : 'var(--gray-100)'};border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+              ${getJenisPresensiIcon(p.jenisPresensi)}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;">${p.nama}</div>
+              <div style="font-size:11px;color:var(--gray-400);">${getJenisPresensiLabel(p.jenisPresensi)} · ${p.jam}</div>
+              <div style="font-size:11px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                📍 ${p.alamat || 'Lokasi tidak tersedia'}
               </div>
-              <div style="text-align:right;flex-shrink:0;">
-                <span class="badge-custom ${p.statusLokasi === 'Dalam Area' ? 'badge-success' : 'badge-danger'}">${p.statusLokasi || '-'}</span>
-                ${p.mapsLink ? `<div style="margin-top:4px;"><a href="${p.mapsLink}" target="_blank" style="font-size:11px;color:var(--info);">📍 Maps</a></div>` : ''}
-              </div>
-            </div>`).join('')}
-        </div>`;
-    } else {
-      document.getElementById('monitoring-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><div class="empty-title">Belum ada presensi hari ini</div></div>`;
-    }
-  } catch(e) {}
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <span class="badge-custom ${p.statusLokasi === 'Dalam Area' ? 'badge-success' : p.statusLokasi === 'Luar Area' ? 'badge-danger' : 'badge-warning'}">${p.statusLokasi || 'N/A'}</span>
+              ${p.mapsLink ? `<div style="margin-top:4px;"><a href="${p.mapsLink}" target="_blank" style="font-size:11px;color:var(--info);font-weight:600;">🗺 Buka Maps</a></div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+  } catch(e) {
+    if (container) container.innerHTML = `<div class="alert alert-danger">Gagal memuat monitoring lokasi: ${e.message}</div>`;
+  }
 }
 
 async function exportRekapExcel() {
   const token = localStorage.getItem('at_token');
   const bulan = document.getElementById('rekap-bulan')?.value;
   const tahun = document.getElementById('rekap-tahun')?.value;
-  
+  const divisi = document.getElementById('rekap-divisi')?.value;
+
   showToast('info', 'Export', 'Mempersiapkan file Excel...');
-  
+
   try {
-    const result = await callAPI('getRekapPresensi', { token, bulan, tahun });
-    if (result.success && result.data.length > 0) {
-      const wsData = [['NIK', 'Nama', 'Jabatan', 'Divisi', 'Hadir', 'Izin', 'Dinas Luar', 'Setengah Hari', 'Terlambat', 'Tidak Hadir']];
-      result.data.forEach(r => wsData.push([r.nik, r.nama, r.jabatan, r.divisi, r.hadir, r.izin, r.dinasLuar, r.setengahHari, r.terlambat, r.tidakHadir || 0]));
-      
+    const result = await callAPI('getRekapPresensi', { token, bulan, tahun, divisi });
+    if (result.success && result.data && result.data.length > 0) {
+      const bulanNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const wsData = [
+        [`REKAP PRESENSI ${bulanNames[(bulan||1)-1]} ${tahun} - ABI TANI`],
+        [],
+        ['NIK','Nama','Jabatan','Divisi','Hari Kerja','Hadir','Izin','Dinas Luar','Setengah Hari','Terlambat','Tidak Hadir']
+      ];
+      result.data.forEach(r => wsData.push([
+        r.nik, r.nama, r.jabatan, r.divisi,
+        r.hariKerja || '-', r.hadir, r.izin, r.dinasLuar, r.setengahHari, r.terlambat, r.tidakHadir || 0
+      ]));
+
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(wsData);
+      // Atur lebar kolom
+      ws['!cols'] = [
+        {wch:12},{wch:25},{wch:18},{wch:15},{wch:10},{wch:8},{wch:8},{wch:10},{wch:12},{wch:10},{wch:10}
+      ];
       XLSX.utils.book_append_sheet(wb, ws, 'Rekap Presensi');
-      XLSX.writeFile(wb, `Rekap_Presensi_${bulan}_${tahun}.xlsx`);
-      showToast('success', 'Export Berhasil', 'File Excel berhasil diunduh');
+      XLSX.writeFile(wb, `Rekap_Presensi_${bulanNames[(bulan||1)-1]}_${tahun}.xlsx`);
+      showToast('success', 'Export Berhasil', `File Excel ${result.data.length} karyawan berhasil diunduh`);
+    } else {
+      showToast('warning', 'Tidak Ada Data', 'Tidak ada data rekap untuk diekspor');
     }
   } catch(e) { showToast('error', 'Export Gagal', e.message); }
 }
@@ -3310,6 +3541,286 @@ window.addEventListener('beforeinstallprompt', (e) => {
   document.body.appendChild(installBtn);
   setTimeout(() => installBtn.remove(), 10000);
 });
+
+// =========================================================
+// MANAJEMEN CABANG
+// =========================================================
+let allCabang = [];
+
+async function loadCabangOptions(selectId, selectedVal) {
+  const token = localStorage.getItem('at_token');
+  try {
+    const result = await callAPI('getCabang', { token });
+    if (result.success) {
+      allCabang = result.data;
+      const sel = document.getElementById(selectId);
+      if (!sel) return;
+      sel.innerHTML = result.data
+        .filter(c => c.status === 'aktif')
+        .map(c => `<option value="${c.namaCabang}" ${c.namaCabang === selectedVal ? 'selected' : ''}>${c.namaCabang} — ${c.entitas || ''}</option>`)
+        .join('');
+    }
+  } catch(e) {}
+}
+
+async function renderManajemenCabang() {
+  const content = document.getElementById('main-content');
+  content.innerHTML = `
+    <div class="fade-in">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Manajemen Cabang</h1>
+          <p class="page-subtitle">Kelola cabang & lokasi absen</p>
+        </div>
+        <button class="btn-primary-custom" onclick="showTambahCabang()">
+          <i class="bi bi-plus-circle"></i> Tambah
+        </button>
+      </div>
+      <div id="cabang-list"><div class="skeleton" style="height:300px;border-radius:16px;"></div></div>
+    </div>
+
+    <div class="modal-custom" id="modal-cabang">
+      <div class="modal-sheet" style="max-height:90vh;overflow-y:auto;">
+        <div class="modal-handle"></div>
+        <div class="modal-header-custom">
+          <h3 class="modal-title-custom" id="modal-cabang-title">Tambah Cabang</h3>
+          <button class="modal-close" onclick="closeModal('modal-cabang')">×</button>
+        </div>
+        <div class="modal-body-custom">
+          <input type="hidden" id="cabang-id-edit">
+          <div class="form-group-custom">
+            <label class="form-label-sm">Nama Cabang *</label>
+            <input type="text" class="input-custom" id="c-nama" placeholder="Contoh: CABANG SURABAYA">
+          </div>
+          <div class="form-group-custom">
+            <label class="form-label-sm">Entitas / Nama Perusahaan</label>
+            <input type="text" class="input-custom" id="c-entitas" placeholder="Contoh: PT ABI TANI JAWA TIMUR">
+          </div>
+          <div class="form-group-custom">
+            <label class="form-label-sm">Alamat</label>
+            <textarea class="textarea-custom" id="c-alamat" placeholder="Alamat lengkap cabang" style="min-height:60px;"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group-custom">
+              <label class="form-label-sm">Latitude</label>
+              <input type="text" class="input-custom" id="c-lat" placeholder="-7.123456">
+            </div>
+            <div class="form-group-custom">
+              <label class="form-label-sm">Longitude</label>
+              <input type="text" class="input-custom" id="c-lng" placeholder="112.123456">
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <button class="btn-secondary-custom" onclick="getLocationForCabang()">
+              <i class="bi bi-crosshair"></i> Gunakan Lokasi Saat Ini
+            </button>
+          </div>
+          <div class="form-group-custom">
+            <label class="form-label-sm">Radius Absen (meter)</label>
+            <select class="select-custom" id="c-radius">
+              ${[50,100,150,200,300,500].map(r => `<option value="${r}" ${r===100?'selected':''}>${r} meter</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group-custom">
+              <label class="form-label-sm">Jam Masuk</label>
+              <input type="time" class="input-custom" id="c-jam-masuk" value="08:00">
+            </div>
+            <div class="form-group-custom">
+              <label class="form-label-sm">Jam Pulang</label>
+              <input type="time" class="input-custom" id="c-jam-pulang" value="17:00">
+            </div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:8px;">Limit Absen per Bulan</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+              <div class="form-group-custom" style="margin:0;">
+                <label class="form-label-sm">Izin</label>
+                <input type="number" class="input-custom" id="c-limit-izin" value="3" min="0" max="31">
+              </div>
+              <div class="form-group-custom" style="margin:0;">
+                <label class="form-label-sm">Cuti</label>
+                <input type="number" class="input-custom" id="c-limit-cuti" value="2" min="0" max="31">
+              </div>
+              <div class="form-group-custom" style="margin:0;">
+                <label class="form-label-sm">Sakit</label>
+                <input type="number" class="input-custom" id="c-limit-sakit" value="5" min="0" max="31">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer-custom">
+          <button class="btn-secondary-custom flex-1 justify-content-center" onclick="closeModal('modal-cabang')">Batal</button>
+          <button class="btn-primary-custom flex-1 justify-content-center" id="btn-simpan-cabang" onclick="simpanCabang()">
+            <i class="bi bi-check"></i> Simpan
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+  loadCabangList();
+}
+
+async function loadCabangList() {
+  const token = localStorage.getItem('at_token');
+  const container = document.getElementById('cabang-list');
+  try {
+    const result = await callAPI('getCabang', { token });
+    if (result.success) {
+      allCabang = result.data;
+      if (result.data.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><div class="empty-title">Belum ada cabang</div></div>`;
+        return;
+      }
+      container.innerHTML = result.data.map(c => `
+        <div class="card-custom mb-2">
+          <div class="card-custom-body">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;">
+              <div style="width:44px;height:44px;background:${c.status==='aktif'?'var(--green-primary)':'var(--gray-400)'};border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:white;font-size:20px;flex-shrink:0;">🏢</div>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:800;">${c.namaCabang}</div>
+                <div style="font-size:11px;color:var(--gray-400);">${c.entitas || '-'}</div>
+              </div>
+              <span class="badge-custom ${c.status==='aktif'?'badge-success':'badge-gray'}">${c.status}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px;">
+              <div style="padding:8px;background:var(--gray-50);border-radius:var(--radius-sm);">
+                <div style="font-weight:600;color:var(--gray-500);">Jam Kerja</div>
+                <div style="font-weight:700;">${c.jamMasuk}:${c.menitMasuk||'00'} – ${c.jamPulang}:${c.menitPulang||'00'}</div>
+              </div>
+              <div style="padding:8px;background:var(--gray-50);border-radius:var(--radius-sm);">
+                <div style="font-weight:600;color:var(--gray-500);">Radius</div>
+                <div style="font-weight:700;">${c.radius} meter</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;margin-bottom:10px;">
+              <div style="padding:6px;background:#FEF3C7;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-weight:700;color:#92400E;">${c.limitIzin}x</div>
+                <div style="color:#92400E;">Izin/bln</div>
+              </div>
+              <div style="padding:6px;background:#D1FAE5;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-weight:700;color:#065F46;">${c.limitCuti}x</div>
+                <div style="color:#065F46;">Cuti/bln</div>
+              </div>
+              <div style="padding:6px;background:#DBEAFE;border-radius:var(--radius-sm);text-align:center;">
+                <div style="font-weight:700;color:#1E40AF;">${c.limitSakit}x</div>
+                <div style="color:#1E40AF;">Sakit/bln</div>
+              </div>
+            </div>
+            ${c.latitude && c.longitude ? `
+            <a href="https://maps.google.com/?q=${c.latitude},${c.longitude}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--info);margin-bottom:10px;font-weight:600;">
+              <i class="bi bi-geo-alt-fill"></i> Lihat Lokasi di Maps
+            </a>` : ''}
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary-custom flex-1 justify-content-center" style="padding:8px;" onclick="editCabang('${c.id}')">
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+              <button class="btn-danger-custom flex-1 justify-content-center" style="padding:8px;" onclick="hapusCabang('${c.id}','${c.namaCabang}')">
+                <i class="bi bi-trash"></i> Hapus
+              </button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+  } catch(e) {
+    if (container) container.innerHTML = '<div class="alert alert-danger">Gagal memuat data cabang</div>';
+  }
+}
+
+function showTambahCabang() {
+  document.getElementById('modal-cabang-title').textContent = 'Tambah Cabang';
+  document.getElementById('cabang-id-edit').value = '';
+  document.getElementById('c-nama').value = '';
+  document.getElementById('c-entitas').value = '';
+  document.getElementById('c-alamat').value = '';
+  document.getElementById('c-lat').value = '';
+  document.getElementById('c-lng').value = '';
+  document.getElementById('c-radius').value = '100';
+  document.getElementById('c-jam-masuk').value = '08:00';
+  document.getElementById('c-jam-pulang').value = '17:00';
+  document.getElementById('c-limit-izin').value = '3';
+  document.getElementById('c-limit-cuti').value = '2';
+  document.getElementById('c-limit-sakit').value = '5';
+  openModal('modal-cabang');
+}
+
+function editCabang(id) {
+  const c = allCabang.find(c => String(c.id) === String(id));
+  if (!c) return;
+  document.getElementById('modal-cabang-title').textContent = 'Edit Cabang';
+  document.getElementById('cabang-id-edit').value = c.id;
+  document.getElementById('c-nama').value = c.namaCabang;
+  document.getElementById('c-entitas').value = c.entitas || '';
+  document.getElementById('c-alamat').value = c.alamat || '';
+  document.getElementById('c-lat').value = c.latitude || '';
+  document.getElementById('c-lng').value = c.longitude || '';
+  document.getElementById('c-radius').value = c.radius || '100';
+  document.getElementById('c-jam-masuk').value = `${c.jamMasuk||'08'}:${c.menitMasuk||'00'}`;
+  document.getElementById('c-jam-pulang').value = `${c.jamPulang||'17'}:${c.menitPulang||'00'}`;
+  document.getElementById('c-limit-izin').value = c.limitIzin || '3';
+  document.getElementById('c-limit-cuti').value = c.limitCuti || '2';
+  document.getElementById('c-limit-sakit').value = c.limitSakit || '5';
+  openModal('modal-cabang');
+}
+
+async function simpanCabang() {
+  const editId = document.getElementById('cabang-id-edit').value;
+  const namaCabang = document.getElementById('c-nama').value.trim().toUpperCase();
+  if (!namaCabang) { showToast('warning','Form','Nama Cabang wajib diisi'); return; }
+  
+  const jamMasukArr = (document.getElementById('c-jam-masuk').value || '08:00').split(':');
+  const jamPulangArr = (document.getElementById('c-jam-pulang').value || '17:00').split(':');
+  
+  const payload = {
+    id: editId, namaCabang,
+    entitas: document.getElementById('c-entitas').value.trim(),
+    alamat: document.getElementById('c-alamat').value.trim(),
+    latitude: document.getElementById('c-lat').value.trim(),
+    longitude: document.getElementById('c-lng').value.trim(),
+    radius: document.getElementById('c-radius').value,
+    jamMasuk: jamMasukArr[0], menitMasuk: jamMasukArr[1],
+    jamPulang: jamPulangArr[0], menitPulang: jamPulangArr[1],
+    limitIzin: document.getElementById('c-limit-izin').value,
+    limitCuti: document.getElementById('c-limit-cuti').value,
+    limitSakit: document.getElementById('c-limit-sakit').value,
+    status: 'aktif'
+  };
+  
+  const btn = document.getElementById('btn-simpan-cabang');
+  btn.disabled = true;
+  const token = localStorage.getItem('at_token');
+  try {
+    const action = editId ? 'editCabang' : 'tambahCabang';
+    const result = await callAPI(action, { token, ...payload });
+    if (result.success) {
+      showToast('success','Berhasil',result.message);
+      closeModal('modal-cabang');
+      loadCabangList();
+    } else {
+      showToast('error','Gagal',result.message);
+    }
+  } catch(e) { showToast('error','Error',e.message); }
+  btn.disabled = false;
+}
+
+function hapusCabang(id, nama) {
+  showConfirmModal('Nonaktifkan Cabang',`Yakin ingin menonaktifkan cabang ${nama}?`, async () => {
+    const token = localStorage.getItem('at_token');
+    try {
+      const result = await callAPI('hapusCabang', { token, id });
+      if (result.success) { showToast('success','Berhasil',result.message); loadCabangList(); }
+    } catch(e) {}
+  });
+}
+
+function getLocationForCabang() {
+  navigator.geolocation.getCurrentPosition((pos) => {
+    document.getElementById('c-lat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('c-lng').value = pos.coords.longitude.toFixed(6);
+    showToast('success','Lokasi Didapat',`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+  }, () => { showToast('error','GPS Error','Tidak dapat mengambil lokasi'); });
+}
+// =========================================================
 </script>
 </body>
 </html>
